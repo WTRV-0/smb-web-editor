@@ -1,5 +1,7 @@
 # 🐒 Monkey Ball Workshop
 
+**Live: https://wtrv-0.github.io/smb-web-editor/**
+
 A browser-based **Super Monkey Ball 2 (GameCube) level editor**. Build stages
 in a live 3D viewport, organize them into level sets, and export game-ready
 files — or patch them straight into your legally-dumped SMB2 ISO for Dolphin.
@@ -18,6 +20,11 @@ npm test           # vitest unit tests for the binary formats
 ```
 
 Use a Chromium-based browser; the ISO patcher needs the File System Access API.
+
+Deploy: `./scripts/deploy-pages.sh` builds and force-pushes `dist/` to the
+`gh-pages` branch (GitHub Pages serves from there). The site is fully static —
+levels stay in your browser's IndexedDB and the ISO patcher streams your own
+locally-dumped ISO through the browser; nothing is ever uploaded anywhere.
 
 ## Features
 
