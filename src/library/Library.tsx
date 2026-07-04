@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, DEFAULT_SET_ID, ensureDefaultSet } from './db';
 import { downloadBlob, exportSetAsProject, importProject } from './projectFile';
 import { exportLevelsAsZip } from '../export/exportLevel';
+import { STORY_SLOTS } from '../formats/gciso/slots';
 import { useEditor } from '../state/store';
 import { newId, newStageDocument } from '../model/defaults';
 import type { LevelRecord } from '../model/types';
@@ -137,7 +138,7 @@ export function Library() {
                       return;
                     }
                     await exportLevelsAsZip(
-                      list.map((l, i) => ({ doc: l.document, slot: 201 + i })),
+                      list.map((l, i) => ({ doc: l.document, slot: STORY_SLOTS[i]?.stageId ?? 0 })).filter((x) => x.slot),
                       `${set.name}-stages.zip`,
                     ).catch((err) => alert(`Export failed: ${err instanceof Error ? err.message : err}`));
                   }}

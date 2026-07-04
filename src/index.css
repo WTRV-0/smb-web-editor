@@ -351,6 +351,22 @@ h4 {
   font-size: 13px;
   margin: 8px 0;
 }
+.slot-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 0;
+}
+.slot-level-name {
+  min-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-duplicate {
+  border-color: #f87171 !important;
+}
 .modal-actions {
   display: flex;
   justify-content: flex-end;

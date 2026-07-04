@@ -40,11 +40,17 @@ export function HelpButton() {
 
               <h3>Getting levels into Dolphin</h3>
               <ol>
-                <li><b>Export</b> produces a zip with <code>STAGENNN.lz</code>, <code>stNNN.gma</code>, <code>stNNN.tpl</code> per level (slots 201+ = Challenge Beginner 1+).</li>
-                <li>Open your legally-dumped SMB2 ISO in <b>GCRebuilder</b> (or similar), replace those files inside the <code>stage/</code> directory, and rebuild the ISO.</li>
-                <li>Open the rebuilt ISO in Dolphin and play the slot you replaced in Challenge mode.</li>
+                <li>Use <b>Patch ISO</b>: pick a level set, assign each level to a named slot (Story 1-1 … 10-10), select your legally-dumped SMB2 ISO, and a patched copy is written — all in the browser.</li>
+                <li>Open the patched ISO in Dolphin and play the slots you replaced.</li>
               </ol>
-              <p className="hint">A built-in ISO patcher is planned — it will take your ISO and produce a patched copy directly in the browser.</p>
+              <p className="hint">
+                How slots work: stage files (<code>STAGENNN.lz</code> + models) are just numbered containers. Course
+                tables inside the game's code decide which stage number each menu slot loads — e.g. vanilla Story 1-1
+                loads STAGE201, but Story 1-5 loads STAGE001. Challenge mode reuses the same stage pool, so replacing
+                a story stage also changes any challenge slot pointing at the same stage. Renaming menu slots or
+                building bigger custom difficulties requires patching those tables (see the community's smb2-relmod) —
+                not needed for simply swapping in your own levels.
+              </p>
             </div>
             <button className="modal-close-btn" onClick={() => setOpen(false)}>
               Close

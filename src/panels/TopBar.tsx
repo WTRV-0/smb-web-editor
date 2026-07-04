@@ -81,7 +81,7 @@ export function TopBar() {
       <button onClick={newDocument}>New Level</button>
       <button onClick={() => setLibraryOpen(true)}>Library</button>
       <button
-        title="Export this level as SMB2 stage files (slot 201)"
+        title="Export this level as SMB2 stage files (STAGE201 = vanilla Story 1-1)"
         onClick={() => {
           exportLevelsAsZip([{ doc, slot: 201 }], `${doc.name}.zip`).catch((err) =>
             alert(`Export failed: ${err instanceof Error ? err.message : err}`),

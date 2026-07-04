@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, ensureDefaultSet } from '../library/db';
 import { useEditor } from '../state/store';
 import { buildStageFiles } from '../export/exportLevel';
 import { patchIso, type ReplacementFile } from '../formats/gciso/patch';
+import { STORY_SLOTS } from '../formats/gciso/slots';
 
 export function IsoPatcherButton() {
   const [open, setOpen] = useState(false);
@@ -20,18 +21,27 @@ export function IsoPatcherButton() {
 function IsoPatcherModal({ onClose }: { onClose: () => void }) {
   const currentSetId = useEditor((s) => s.setId);
   const [setId, setSetId] = useState(currentSetId);
-  const [baseSlot, setBaseSlot] = useState(201);
   const [iso, setIso] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ fraction: number; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** stage id assigned per level index */
+  const [slotIds, setSlotIds] = useState<number[]>([]);
   const isoInput = useRef<HTMLInputElement>(null);
 
   const sets = useLiveQuery(async () => {
     await ensureDefaultSet();
     return db.levelSets.orderBy('name').toArray();
   }, []);
-  const levelCount = useLiveQuery(() => db.levels.where('setId').equals(setId).count(), [setId]) ?? 0;
+  const levels = useLiveQuery(() => db.levels.where('setId').equals(setId).sortBy('slot'), [setId]);
+  const levelCount = levels?.length ?? 0;
+
+  // default assignment: Story 1-1, 1-2, ... in set order
+  useEffect(() => {
+    if (levels) setSlotIds(levels.map((_, i) => STORY_SLOTS[i]?.stageId ?? 0));
+  }, [levels]);
+
+  const duplicateSlots = new Set(slotIds.filter((id, i) => id && slotIds.indexOf(id) !== i));
 
   const supported = typeof window.showSaveFilePicker === 'function';
 
@@ -47,15 +57,18 @@ function IsoPatcherModal({ onClose }: { onClose: () => void }) {
       setBusy(true);
 
       setProgress({ fraction: 0, message: 'Building stage files…' });
-      const levels = await db.levels.where('setId').equals(setId).sortBy('slot');
+      const list = await db.levels.where('setId').equals(setId).sortBy('slot');
       const replacements: ReplacementFile[] = [];
-      for (let i = 0; i < levels.length; i++) {
-        const slot = String(baseSlot + i).padStart(3, '0');
-        const stage = await buildStageFiles(levels[i].document);
+      for (let i = 0; i < list.length; i++) {
+        const stageId = slotIds[i];
+        if (!stageId) continue; // level marked "skip"
+        const slot = String(stageId).padStart(3, '0');
+        const stage = await buildStageFiles(list[i].document);
         replacements.push({ name: `STAGE${slot}.lz`, data: stage.lz });
         replacements.push({ name: `st${slot}.gma`, data: stage.gma });
         replacements.push({ name: `st${slot}.tpl`, data: stage.tpl });
       }
+      if (replacements.length === 0) throw new Error('No levels have a slot assigned.');
 
       const writable = await outHandle.createWritable();
       try {
@@ -100,21 +113,37 @@ function IsoPatcherModal({ onClose }: { onClose: () => void }) {
               ))}
             </select>
           </label>
-          <label className="field field-wide">
-            <span>First slot</span>
-            <input
-              type="number"
-              min={201}
-              max={420}
-              value={baseSlot}
-              disabled={busy}
-              onChange={(e) => setBaseSlot(parseInt(e.target.value) || 201)}
-            />
-          </label>
+          <h3>Slot assignment</h3>
           <p className="hint">
-            {levelCount} level(s) → slots {baseSlot}–{baseSlot + Math.max(levelCount - 1, 0)} (201 = Challenge
-            Beginner 1).
+            Stage files are numbered containers — which one loads for "Story 2-3" is decided by course tables in the
+            game code. These dropdowns target the <b>vanilla story-mode slots</b>; challenge-mode difficulties reuse
+            the same stages, so e.g. Story 1-1 is also vanilla Beginner 1.
           </p>
+          <div className="slot-list">
+            {(levels ?? []).map((level, i) => (
+              <label key={level.id} className="field field-wide">
+                <span className="slot-level-name">{level.document.name}</span>
+                <select
+                  value={slotIds[i] ?? 0}
+                  disabled={busy}
+                  className={duplicateSlots.has(slotIds[i]) ? 'slot-duplicate' : ''}
+                  onChange={(e) => {
+                    const next = [...slotIds];
+                    next[i] = parseInt(e.target.value);
+                    setSlotIds(next);
+                  }}
+                >
+                  <option value={0}>— skip —</option>
+                  {STORY_SLOTS.map((s) => (
+                    <option key={s.stageId} value={s.stageId}>
+                      {s.label} · STAGE{String(s.stageId).padStart(3, '0')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+          {duplicateSlots.size > 0 && <p className="error-text">Two levels target the same slot — fix before patching.</p>}
           <label className="field field-wide">
             <span>SMB2 ISO</span>
             <button disabled={busy} onClick={() => isoInput.current?.click()}>
@@ -140,7 +169,11 @@ function IsoPatcherModal({ onClose }: { onClose: () => void }) {
           <button disabled={busy} onClick={onClose}>
             Close
           </button>
-          <button disabled={!iso || busy || levelCount === 0 || !supported} className="active" onClick={() => void run()}>
+          <button
+            disabled={!iso || busy || levelCount === 0 || !supported || duplicateSlots.size > 0}
+            className="active"
+            onClick={() => void run()}
+          >
             {busy ? 'Patching…' : 'Patch'}
           </button>
         </div>

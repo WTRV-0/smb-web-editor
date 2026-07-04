@@ -29,20 +29,22 @@ export async function buildStageFiles(doc: StageDocument): Promise<StageFiles> {
 const README = `Monkey Ball Workshop export
 ===========================
 
-Files per stage slot NNN (Super Monkey Ball 2, GameCube):
+Files per stage number NNN (Super Monkey Ball 2, GameCube):
   STAGENNN.lz  - stage definition (collision + objects), LZSS compressed
   stNNN.gma    - stage models
   stNNN.tpl    - stage textures
 
-To play in Dolphin, insert these into your legally-dumped SMB2 ISO's "stage"
-directory, replacing the stock files for that slot, using GCRebuilder
-(Windows) or "gcmtool"/other GC filesystem tools. Then open the rebuilt ISO
-in Dolphin and select the stage in Challenge mode.
+Stage files are numbered containers; WHICH file the game loads for a given
+menu slot is decided by course tables inside mkb2.main_loop.rel. These
+exports are numbered for the vanilla STORY MODE slots (Story 1-1 = STAGE201,
+1-2 = 202, 1-3 = 203, 1-4 = 204, 1-5 = STAGE001, ... - the vanilla table is
+irregular). Challenge mode reuses the same stage pool, so replacing a story
+stage also replaces any challenge slot that references the same stage id.
 
-Slot numbers: 201+ correspond to Challenge mode Beginner 1+; see the SMB2
-modding community docs for the full slot table.
-
-An in-app ISO patcher is planned so this manual step goes away.
+To play in Dolphin, replace the matching files inside your legally-dumped
+SMB2 ISO (GCRebuilder or similar), or skip this zip entirely and use the
+app's "Patch ISO" button, which assigns slots by name and patches a copy of
+your ISO in the browser.
 `;
 
 /** Zip one or more levels (documents paired with stage slot numbers). */
