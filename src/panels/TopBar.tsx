@@ -4,6 +4,8 @@ import { exportLevelsAsZip } from '../export/exportLevel';
 import { buildGeometry } from '../editor/meshGeometry';
 import { HelpButton } from './HelpOverlay';
 import { IsoPatcherButton } from './IsoPatcher';
+import { Wordmark } from '../ui/Wordmark';
+import { KeyboardIcon } from '../ui/icons';
 
 function TriangleCounter() {
   const meshes = useEditor((s) => s.doc.meshes);
@@ -48,7 +50,7 @@ export function TopBar() {
 
   return (
     <div className="topbar">
-      <span className="brand">🐒 Monkey Ball Workshop</span>
+      <Wordmark />
       <span className="doc-name">{doc.name}</span>
       <span className={`save-state save-${saveState}`}>
         {saveState === 'saved' ? '✓ saved' : saveState === 'saving' ? 'saving…' : '● unsaved'}
@@ -92,8 +94,8 @@ export function TopBar() {
         Export
       </button>
       <IsoPatcherButton />
-      <button onClick={() => setShortcutsOpen(true)} title="Keyboard shortcuts (?)">
-        ⌨
+      <button className="icon-only" onClick={() => setShortcutsOpen(true)} title="Keyboard shortcuts (?)">
+        <KeyboardIcon size={18} />
       </button>
       <HelpButton />
     </div>

@@ -63,7 +63,7 @@ export function ShortcutsOverlay() {
     <div className="modal-backdrop" onClick={() => setOpen(false)}>
       <div className="modal shortcuts-modal" onClick={(e) => e.stopPropagation()}>
         <div className="shortcuts-content">
-          <h2>⌨ Keyboard Shortcuts</h2>
+          <h2>Keyboard Shortcuts</h2>
           <div className="shortcuts-grid">
             {GROUPS.map((g) => (
               <div key={g.title} className="shortcuts-group">

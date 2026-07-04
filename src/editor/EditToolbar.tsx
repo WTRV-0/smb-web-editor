@@ -9,6 +9,7 @@ import {
   uniqueEdges,
 } from './editableMesh';
 import type { EditableMesh } from '../model/types';
+import { BoxSelectIcon, PencilIcon } from '../ui/icons';
 
 const MODES: { mode: EditComponentMode; label: string; key: string }[] = [
   { mode: 'vertex', label: 'Vertex', key: '1' },
@@ -92,7 +93,9 @@ export function EditToolbar() {
 
   return (
     <div className="edit-toolbar">
-      <span className="edit-toolbar-title">✏ {mesh.name}</span>
+      <span className="edit-toolbar-title">
+        <PencilIcon size={15} /> {mesh.name}
+      </span>
       <div className="btn-group">
         {MODES.map((m) => (
           <button
@@ -122,7 +125,7 @@ export function EditToolbar() {
         title="Box select — drag a rectangle to select components (B)"
         onClick={toggleBoxSelect}
       >
-        ▧ Box
+        <BoxSelectIcon size={14} /> Box
       </button>
       <button disabled={em.mode !== 'face' || !hasSelection} onClick={editExtrude} title="Extrude selected faces (E), then drag">
         Extrude

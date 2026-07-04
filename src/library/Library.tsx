@@ -4,6 +4,7 @@ import { db, DEFAULT_SET_ID, ensureDefaultSet } from './db';
 import { downloadBlob, exportSetAsProject, importProject } from './projectFile';
 import { exportLevelsAsZip } from '../export/exportLevel';
 import { STORY_SLOTS } from '../formats/gciso/slots';
+import { BrandMark, GamepadIcon } from '../ui/icons';
 import { useEditor } from '../state/store';
 import { newId, newStageDocument } from '../model/defaults';
 import type { LevelRecord } from '../model/types';
@@ -143,7 +144,7 @@ export function Library() {
                     ).catch((err) => alert(`Export failed: ${err instanceof Error ? err.message : err}`));
                   }}
                 >
-                  🎮
+                  <GamepadIcon size={14} />
                 </button>
                 <button className="icon-btn" title="Delete set" onClick={(e) => (e.stopPropagation(), void deleteSet(set.id))}>
                   ✕
@@ -186,7 +187,13 @@ export function Library() {
                   onClick={() => loadDocument(structuredClone(level.document), selectedSetId)}
                   title="Open in editor"
                 >
-                  {level.thumbnail ? <img src={level.thumbnail} alt="" /> : <span className="thumb-placeholder">🐒</span>}
+                  {level.thumbnail ? (
+                    <img src={level.thumbnail} alt="" />
+                  ) : (
+                    <span className="thumb-placeholder">
+                      <BrandMark size={40} />
+                    </span>
+                  )}
                 </div>
                 <div className="level-card-body">
                   <span className="level-name">

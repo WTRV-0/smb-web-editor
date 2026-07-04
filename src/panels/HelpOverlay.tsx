@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import { HelpIcon } from '../ui/icons';
 
 export function HelpButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button onClick={() => setOpen(true)} title="Help & Dolphin workflow">
-        ?
+      <button className="icon-only" onClick={() => setOpen(true)} title="Help & Dolphin workflow">
+        <HelpIcon size={18} />
       </button>
       {open && (
         <div className="modal-backdrop" onClick={() => setOpen(false)}>
@@ -24,7 +25,7 @@ export function HelpButton() {
 
               <h3>Mesh edit mode (Blender-style)</h3>
               <ul>
-                <li>Select a mesh and press <b>Tab</b> (or "✏ Edit Mesh") — parametric shapes get baked to a free-form mesh.</li>
+                <li>Select a mesh and press <b>Tab</b> (or "Edit Mesh") — parametric shapes get baked to a free-form mesh.</li>
                 <li><b>1 / 2 / 3</b> switch vertex / edge / face select; click to select, shift-click to add; <b>A</b> selects all/none.</li>
                 <li>Drag the gizmo to move the selection. <b>E</b> extrudes selected faces (then drag them out), plus Subdivide, Merge (vertices), Delete, and Flip normals on the toolbar.</li>
                 <li><b>Tab</b> or Done exits; everything is undoable with Ctrl+Z.</li>
