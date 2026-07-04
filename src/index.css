@@ -531,6 +531,102 @@ kbd {
   padding: 4px 9px;
 }
 
+/* ---------- View controls (top-right of viewport) ---------- */
+.view-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  backdrop-filter: blur(4px);
+}
+.view-controls button {
+  padding: 4px 9px;
+  font-size: 12px;
+}
+/* When edit toolbar is present it sits at top spanning width; nudge views down */
+.edit-toolbar ~ .view-controls {
+  top: 58px;
+}
+
+/* ---------- Box-select rectangle ---------- */
+.box-select-rect {
+  position: absolute;
+  border: 1px dashed var(--accent-2);
+  background: rgba(255, 210, 59, 0.12);
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* ---------- Drag readout HUD (bottom-center) ---------- */
+.drag-readout {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: color-mix(in srgb, #0d1420 92%, transparent);
+  border: 1px solid var(--sky-deep);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  pointer-events: none;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+}
+.drag-readout-mode {
+  color: var(--accent-2);
+  font-weight: 700;
+}
+.drag-readout-axis b {
+  color: var(--sky);
+  margin-right: 3px;
+}
+
+/* ---------- Numeric transform popover (center) ---------- */
+.numeric-transform {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+  border: 1px solid var(--sky);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+}
+.numeric-title {
+  font-weight: 700;
+  color: var(--accent-2);
+  margin-right: 4px;
+}
+.numeric-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.numeric-field input {
+  width: 70px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  padding: 4px 6px;
+  font-size: 13px;
+}
+
 /* ---------- Play bar ---------- */
 .playbar {
   position: absolute;

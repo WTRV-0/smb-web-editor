@@ -4,6 +4,8 @@ import {
   importedToEditable,
   mergeVertices,
   primitiveToEditable,
+  rotateVertices,
+  scaleVertices,
   signedVolume,
   subdivideFaces,
   deleteFaces,
@@ -142,6 +144,36 @@ describe('edit operations', () => {
     expect(merged.faces.length).toBe(5);
     expect(merged.faces.every((f) => f.length >= 3)).toBe(true);
     expect(noNaN(merged)).toBe(true);
+  });
+
+  it('rotates a full box about its center without changing volume', () => {
+    const m = box();
+    const allVerts = [...Array(vertexCount(m)).keys()];
+    const rotated = rotateVertices(m, allVerts, [0, 0, 0], [0, Math.PI / 2, 0]);
+    expect(noNaN(rotated)).toBe(true);
+    expect(Math.abs(signedVolume(rotated))).toBeCloseTo(8, 4);
+    expect(isClosedManifold(rotated)).toBe(true);
+  });
+
+  it('rotating the whole box 90° about Y maps a +X corner toward -Z', () => {
+    const m = box(); // 2x2x2 centered
+    const allVerts = [...Array(vertexCount(m)).keys()];
+    const rotated = rotateVertices(m, allVerts, [0, 0, 0], [0, Math.PI / 2, 0]);
+    // some vertex must now sit near (0,*, -? )... check a corner (1,*,1) -> (1,*,-1) under Rz*Ry*Rx here
+    const moved = [];
+    for (let v = 0; v < vertexCount(rotated); v++) {
+      moved.push([rotated.positions[v * 3], rotated.positions[v * 3 + 2]]);
+    }
+    // all corners keep |x|=|z|=1, just permuted
+    expect(moved.every(([x, z]) => Math.abs(Math.abs(x) - 1) < 1e-6 && Math.abs(Math.abs(z) - 1) < 1e-6)).toBe(true);
+  });
+
+  it('scales the whole box about its center', () => {
+    const m = box();
+    const allVerts = [...Array(vertexCount(m)).keys()];
+    const scaled = scaleVertices(m, allVerts, [0, 0, 0], [2, 1, 3]);
+    expect(signedVolume(scaled)).toBeCloseTo(8 * 2 * 1 * 3, 4);
+    expect(isClosedManifold(scaled)).toBe(true);
   });
 
   it('welds imported duplicate vertices into shared topology', () => {

@@ -130,6 +130,53 @@ export function translateVertices(mesh: EditableMesh, verts: number[], dx: numbe
 }
 
 /**
+ * Rotate vertices about a pivot by Euler angles (radians, XYZ order).
+ * Used by edit-mode rotate; pivot is the selection centroid.
+ */
+export function rotateVertices(
+  mesh: EditableMesh,
+  verts: number[],
+  pivot: [number, number, number],
+  euler: [number, number, number],
+): EditableMesh {
+  const next = cloneMesh(mesh);
+  const [cx, cy, cz] = euler.map(Math.cos);
+  const [sx, sy, sz] = euler.map(Math.sin);
+  // Rz * Ry * Rx applied to (p - pivot)
+  for (const v of verts) {
+    let x = next.positions[v * 3] - pivot[0];
+    let y = next.positions[v * 3 + 1] - pivot[1];
+    let z = next.positions[v * 3 + 2] - pivot[2];
+    // Rx
+    [y, z] = [y * cx - z * sx, y * sx + z * cx];
+    // Ry
+    [x, z] = [x * cy + z * sy, -x * sy + z * cy];
+    // Rz
+    [x, y] = [x * cz - y * sz, x * sz + y * cz];
+    next.positions[v * 3] = x + pivot[0];
+    next.positions[v * 3 + 1] = y + pivot[1];
+    next.positions[v * 3 + 2] = z + pivot[2];
+  }
+  return next;
+}
+
+/** Scale vertices about a pivot by per-axis factors. */
+export function scaleVertices(
+  mesh: EditableMesh,
+  verts: number[],
+  pivot: [number, number, number],
+  factor: [number, number, number],
+): EditableMesh {
+  const next = cloneMesh(mesh);
+  for (const v of verts) {
+    next.positions[v * 3] = pivot[0] + (next.positions[v * 3] - pivot[0]) * factor[0];
+    next.positions[v * 3 + 1] = pivot[1] + (next.positions[v * 3 + 1] - pivot[1]) * factor[1];
+    next.positions[v * 3 + 2] = pivot[2] + (next.positions[v * 3 + 2] - pivot[2]) * factor[2];
+  }
+  return next;
+}
+
+/**
  * Region extrude: selected faces get fresh vertices; walls are built along the
  * region boundary. New vertices start at the old positions (drag to pull out).
  */

@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { useThree } from '@react-three/fiber';
 import { TransformControls } from '@react-three/drei';
 import { useEditor } from '../state/store';
 import type { EditableMesh, StageMesh } from '../model/types';
-import { decodeEdge, encodeEdge, translateVertices, uniqueEdges } from './editableMesh';
+import {
+  decodeEdge,
+  encodeEdge,
+  rotateVertices,
+  scaleVertices,
+  translateVertices,
+  uniqueEdges,
+} from './editableMesh';
 
 const VERT_COLOR = new THREE.Color('#1f2937');
 const VERT_SELECTED = new THREE.Color('#facc15');
@@ -56,6 +64,11 @@ export function EditModeOverlay({
   const setEditSelection = useEditor((s) => s.setEditSelection);
   const captureSnapshot = useEditor((s) => s.captureSnapshot);
   const applyEditOp = useEditor((s) => s.applyEditOp);
+  const editTransformMode = useEditor((s) => s.editTransformMode);
+  const setDragReadout = useEditor((s) => s.setDragReadout);
+  const boxSelectActive = useEditor((s) => s.boxSelectActive);
+  const setBoxSelectRect = useEditor((s) => s.setBoxSelectRect);
+  const { camera, gl, size } = useThree();
   const [dragging, setDragging] = useState(false);
   const pivot = useMemo(() => new THREE.Object3D(), []);
   const dragStart = useRef(new THREE.Vector3());
@@ -152,29 +165,185 @@ export function EditModeOverlay({
     if (!dragging) pivot.position.copy(centroid);
   }, [pivot, centroid, dragging]);
 
+  // Box (rectangle) select: capture a drag over the canvas and select every
+  // component whose projected screen point lands inside the rectangle.
+  useEffect(() => {
+    if (!boxSelectActive || !em || !editable) return;
+    const el = gl.domElement;
+    let start: [number, number] | null = null;
+    let shift = false;
+
+    const local = (ev: PointerEvent): [number, number] => {
+      const r = el.getBoundingClientRect();
+      return [ev.clientX - r.left, ev.clientY - r.top];
+    };
+    const onDown = (ev: PointerEvent) => {
+      if (ev.button !== 0) return;
+      start = local(ev);
+      shift = ev.shiftKey;
+    };
+    const onMove = (ev: PointerEvent) => {
+      if (!start) return;
+      const [x1, y1] = local(ev);
+      setBoxSelectRect({ x0: start[0], y0: start[1], x1, y1 });
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (!start) return;
+      const [ex, ey] = local(ev);
+      const minX = Math.min(start[0], ex);
+      const maxX = Math.max(start[0], ex);
+      const minY = Math.min(start[1], ey);
+      const maxY = Math.max(start[1], ey);
+      start = null;
+      setBoxSelectRect(null);
+      if (maxX - minX < 3 && maxY - minY < 3) return; // treat as a click, not a box
+
+      const meshObj = renderedMesh.current;
+      if (!meshObj) return;
+      meshObj.updateWorldMatrix(true, false);
+      const world = meshObj.matrixWorld;
+      const tmp = new THREE.Vector3();
+      const toPx = (x: number, y: number, z: number): [number, number] | null => {
+        tmp.set(x, y, z).applyMatrix4(world).project(camera);
+        if (tmp.z > 1) return null; // behind the camera
+        return [((tmp.x + 1) / 2) * size.width, ((1 - tmp.y) / 2) * size.height];
+      };
+      const inBox = (px: [number, number] | null) =>
+        !!px && px[0] >= minX && px[0] <= maxX && px[1] >= minY && px[1] <= maxY;
+      const P = editable.positions;
+      const picked: number[] = [];
+      if (em.mode === 'vertex') {
+        for (let i = 0; i < P.length / 3; i++) if (inBox(toPx(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]))) picked.push(i);
+      } else if (em.mode === 'edge') {
+        for (const key of uniqueEdges(editable)) {
+          const [a, b] = decodeEdge(key);
+          if (inBox(toPx((P[a * 3] + P[b * 3]) / 2, (P[a * 3 + 1] + P[b * 3 + 1]) / 2, (P[a * 3 + 2] + P[b * 3 + 2]) / 2)))
+            picked.push(key);
+        }
+      } else {
+        for (let f = 0; f < editable.faces.length; f++) {
+          const loop = editable.faces[f];
+          let cx = 0;
+          let cy = 0;
+          let cz = 0;
+          for (const v of loop) {
+            cx += P[v * 3];
+            cy += P[v * 3 + 1];
+            cz += P[v * 3 + 2];
+          }
+          if (inBox(toPx(cx / loop.length, cy / loop.length, cz / loop.length))) picked.push(f);
+        }
+      }
+      if (shift) setEditSelection([...new Set([...em.selection, ...picked])]);
+      else setEditSelection(picked);
+    };
+
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      setBoxSelectRect(null);
+    };
+  }, [boxSelectActive, em, editable, camera, gl, size.width, size.height, renderedMesh, setBoxSelectRect, setEditSelection]);
+
   if (!em || !editable) return null;
 
-  const applyLiveDelta = (delta: THREE.Vector3) => {
+  const pivotArr = (): [number, number, number] => [dragStart.current.x, dragStart.current.y, dragStart.current.z];
+
+  /** Compute the transformed position of a source vertex for the live preview. */
+  const transformedPos = (v: number): [number, number, number] => {
+    const p: [number, number, number] = [editable.positions[v * 3], editable.positions[v * 3 + 1], editable.positions[v * 3 + 2]];
+    if (editTransformMode === 'translate') {
+      const d = pivot.position.clone().sub(dragStart.current);
+      return [p[0] + d.x, p[1] + d.y, p[2] + d.z];
+    }
+    const c = pivotArr();
+    if (editTransformMode === 'scale') {
+      return [
+        c[0] + (p[0] - c[0]) * pivot.scale.x,
+        c[1] + (p[1] - c[1]) * pivot.scale.y,
+        c[2] + (p[2] - c[2]) * pivot.scale.z,
+      ];
+    }
+    // rotate: apply pivot.rotation about centroid
+    const e = pivot.rotation;
+    const [cx, cy, cz] = [Math.cos(e.x), Math.cos(e.y), Math.cos(e.z)];
+    const [sx, sy, sz] = [Math.sin(e.x), Math.sin(e.y), Math.sin(e.z)];
+    let x = p[0] - c[0];
+    let y = p[1] - c[1];
+    let z = p[2] - c[2];
+    [y, z] = [y * cx - z * sx, y * sx + z * cx];
+    [x, z] = [x * cy + z * sy, -x * sy + z * cy];
+    [x, y] = [x * cz - y * sz, x * sz + y * cz];
+    return [x + c[0], y + c[1], z + c[2]];
+  };
+
+  const applyLive = () => {
     const geo = renderedMesh.current?.geometry;
     const attr = geo?.getAttribute('position') as THREE.BufferAttribute | undefined;
     if (!attr) return;
     for (const v of verts) {
+      const t = transformedPos(v);
       for (const off of offsets.get(v) ?? []) {
-        attr.array[off] = editable.positions[v * 3] + delta.x;
-        attr.array[off + 1] = editable.positions[v * 3 + 1] + delta.y;
-        attr.array[off + 2] = editable.positions[v * 3 + 2] + delta.z;
+        attr.array[off] = t[0];
+        attr.array[off + 1] = t[1];
+        attr.array[off + 2] = t[2];
       }
     }
     attr.needsUpdate = true;
     geo?.computeVertexNormals();
+    publishReadout();
+  };
+
+  const publishReadout = () => {
+    if (editTransformMode === 'translate') {
+      const d = pivot.position.clone().sub(dragStart.current);
+      setDragReadout({ mode: 'translate', values: [d.x, d.y, d.z] });
+    } else if (editTransformMode === 'rotate') {
+      const DEG = 180 / Math.PI;
+      setDragReadout({ mode: 'rotate', values: [pivot.rotation.x * DEG, pivot.rotation.y * DEG, pivot.rotation.z * DEG] });
+    } else {
+      setDragReadout({ mode: 'scale', values: [pivot.scale.x, pivot.scale.y, pivot.scale.z] });
+    }
+  };
+
+  const beginDrag = () => {
+    dragStart.current.copy(centroid); // centroid is the pivot for all modes
+    pivot.position.copy(centroid);
+    pivot.rotation.set(0, 0, 0);
+    pivot.scale.set(1, 1, 1);
+    captureSnapshot();
+    setDragging(true);
+    publishReadout();
   };
 
   const commitDrag = () => {
-    const delta = pivot.position.clone().sub(dragStart.current);
-    if (delta.lengthSq() > 1e-12) {
-      applyEditOp((m) => ({ mesh: translateVertices(m, verts, delta.x, delta.y, delta.z), selection: em.selection }), {
-        captureHistory: false, // snapshot was captured on drag start
-      });
+    setDragReadout(null);
+    const c = pivotArr();
+    if (editTransformMode === 'translate') {
+      const delta = pivot.position.clone().sub(dragStart.current);
+      if (delta.lengthSq() > 1e-12) {
+        applyEditOp((m) => ({ mesh: translateVertices(m, verts, delta.x, delta.y, delta.z), selection: em.selection }), {
+          captureHistory: false,
+        });
+      }
+    } else if (editTransformMode === 'rotate') {
+      const e = pivot.rotation;
+      if (e.x || e.y || e.z) {
+        applyEditOp((m) => ({ mesh: rotateVertices(m, verts, c, [e.x, e.y, e.z]), selection: em.selection }), {
+          captureHistory: false,
+        });
+      }
+    } else {
+      const s = pivot.scale;
+      if (s.x !== 1 || s.y !== 1 || s.z !== 1) {
+        applyEditOp((m) => ({ mesh: scaleVertices(m, verts, c, [s.x, s.y, s.z]), selection: em.selection }), {
+          captureHistory: false,
+        });
+      }
     }
   };
 
@@ -231,20 +400,16 @@ export function EditModeOverlay({
         </mesh>
       )}
 
-      {/* translate gizmo at the selection centroid */}
+      {/* transform gizmo at the selection centroid (mode from editTransformMode) */}
       {verts.length > 0 && (
         <>
           <primitive object={pivot} />
           <TransformControls
             object={pivot}
-            mode="translate"
+            mode={editTransformMode}
             size={0.7}
-            onMouseDown={() => {
-              dragStart.current.copy(pivot.position);
-              captureSnapshot();
-              setDragging(true);
-            }}
-            onObjectChange={() => applyLiveDelta(pivot.position.clone().sub(dragStart.current))}
+            onMouseDown={beginDrag}
+            onObjectChange={applyLive}
             onMouseUp={() => {
               setDragging(false);
               commitDrag();

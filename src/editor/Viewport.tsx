@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Grid, OrbitControls, TransformControls } from '@react-three/drei';
+import { Grid, TransformControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useEditor, type Selection } from '../state/store';
 import type { ItemGroup, StageMesh, StageObject } from '../model/types';
@@ -10,6 +10,7 @@ import { ObjectVisual, StartVisual } from './objectVisuals';
 import { evalGroupAnimation } from './animation';
 import { previewClock } from './previewClock';
 import { EditModeOverlay, nearestEdgeOfFace, nearestVertexOfFace } from './EditModeOverlay';
+import { CameraRig } from './CameraRig';
 
 const DEG = Math.PI / 180;
 
@@ -174,11 +175,22 @@ function SelectionGizmo() {
   const snap = useEditor((s) => s.snapEnabled);
   const captureSnapshot = useEditor((s) => s.captureSnapshot);
   const mutate = useEditor((s) => s.mutate);
+  const setDragReadout = useEditor((s) => s.setDragReadout);
   const dragging = useRef(false);
 
   const key = selectionKey(selection);
   const node = key ? nodeRegistry.get(key) : undefined;
   if (!selection || !node || editMode) return null;
+
+  const publishReadout = () => {
+    if (mode === 'rotate') {
+      setDragReadout({ mode, values: [node.rotation.x / DEG, node.rotation.y / DEG, node.rotation.z / DEG] });
+    } else if (mode === 'scale') {
+      setDragReadout({ mode, values: [node.scale.x, node.scale.y, node.scale.z] });
+    } else {
+      setDragReadout({ mode, values: [node.position.x, node.position.y, node.position.z] });
+    }
+  };
 
   // Scale applies to meshes and objects that carry a scale field
   const supportsScale =
@@ -228,11 +240,14 @@ function SelectionGizmo() {
       onMouseDown={() => {
         dragging.current = true;
         captureSnapshot();
+        publishReadout();
       }}
+      onObjectChange={publishReadout}
       onMouseUp={() => {
         if (dragging.current) {
           dragging.current = false;
           commit();
+          setDragReadout(null);
         }
       }}
     />
@@ -341,7 +356,6 @@ export function Viewport() {
   return (
     <Canvas
       gl={{ preserveDrawingBuffer: true }}
-      camera={{ position: [12, 10, 14], fov: 50 }}
       onPointerMissed={() => {
         const s = useEditor.getState();
         if (s.editMode) s.setEditSelection([]);
@@ -394,7 +408,7 @@ export function Viewport() {
       <SelectionGizmo />
       <FocusHandler />
       <ClockDriver />
-      <OrbitControls makeDefault />
+      <CameraRig />
     </Canvas>
   );
 }

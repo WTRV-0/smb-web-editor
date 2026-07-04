@@ -5,6 +5,8 @@ import { Outliner } from './panels/Outliner';
 import { Inspector } from './panels/Inspector';
 import { Viewport } from './editor/Viewport';
 import { PlayBar } from './editor/PlayBar';
+import { ViewControls } from './editor/ViewControls';
+import { BoxSelectRect, DragReadout, NumericTransform } from './editor/TransformHud';
 import { EditToolbar, editDeleteComponents, editExtrude, editSelectAll } from './editor/EditToolbar';
 import { Library } from './library/Library';
 import { ShortcutsOverlay } from './panels/ShortcutsOverlay';
@@ -54,14 +56,34 @@ function useKeyboardShortcuts() {
       }
 
       if (s.editMode) {
-        // edit-mode shortcuts
+        // edit-mode shortcuts: 1/2/3 component modes, G/R/S transform, E extrude
         if (e.key === '1') s.setEditComponentMode('vertex');
         else if (e.key === '2') s.setEditComponentMode('edge');
         else if (e.key === '3') s.setEditComponentMode('face');
+        else if (e.key === 'g' || e.key === 'G') s.setEditTransformMode('translate');
+        else if (e.key === 'r' || e.key === 'R') s.setEditTransformMode('rotate');
+        else if (e.key === 's' || e.key === 'S') s.setEditTransformMode('scale');
         else if (e.key === 'e' || e.key === 'E') editExtrude();
         else if (e.key === 'a' || e.key === 'A') editSelectAll();
+        else if (e.key === 'b' || e.key === 'B') s.toggleBoxSelect();
         else if (e.key === 'Delete' || e.key === 'Backspace') editDeleteComponents();
-        else if (e.key === 'Escape') s.exitEditMode();
+        else if (e.key === 'Escape') {
+          if (s.boxSelectActive) s.setBoxSelectActive(false);
+          else s.exitEditMode();
+        }
+        return;
+      }
+
+      // Camera: numpad-style view snaps + projection toggle
+      if (e.key === '7') return void s.setView('top');
+      if (e.key === '1') return void s.setView('front');
+      if (e.key === '3') return void s.setView('side');
+      if (e.key === '0') return void s.setView('home');
+      if (e.key === '5') return void s.toggleProjection();
+      // Enter opens numeric type-to-transform for the active gizmo mode
+      if (e.key === 'Enter' && s.selection && s.selection.kind !== 'group') {
+        e.preventDefault();
+        s.openNumeric();
         return;
       }
 
@@ -106,7 +128,11 @@ export default function App() {
         </div>
         <div className="viewport-container">
           <Viewport />
+          <ViewControls />
           <EditToolbar />
+          <BoxSelectRect />
+          <DragReadout />
+          <NumericTransform />
           <PlayBar />
         </div>
         <div className="right-panel">

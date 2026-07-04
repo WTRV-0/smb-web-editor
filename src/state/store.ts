@@ -9,6 +9,15 @@ export type TransformMode = 'translate' | 'rotate' | 'scale';
 
 export type EditComponentMode = 'vertex' | 'edge' | 'face';
 
+export type CameraProjection = 'perspective' | 'orthographic';
+export type CameraView = 'top' | 'front' | 'side' | 'home';
+
+export interface DragReadout {
+  mode: TransformMode;
+  /** live values shown in the HUD (position, degrees, or scale factors) */
+  values: [number, number, number];
+}
+
 export interface EditModeState {
   meshId: string;
   mode: EditComponentMode;
@@ -69,6 +78,35 @@ interface EditorState {
   /** Whether the keyboard-shortcuts cheat sheet is open. */
   shortcutsOpen: boolean;
   setShortcutsOpen: (open: boolean) => void;
+
+  /** Camera: perspective vs orthographic, plus snap-view requests. */
+  projection: CameraProjection;
+  toggleProjection: () => void;
+  setProjection: (p: CameraProjection) => void;
+  requestedView: CameraView | null;
+  viewNonce: number;
+  setView: (view: CameraView) => void;
+
+  /** Transform mode used inside mesh edit mode (independent of object mode). */
+  editTransformMode: TransformMode;
+  setEditTransformMode: (mode: TransformMode) => void;
+
+  /** Box (rectangle) select in edit mode. */
+  boxSelectActive: boolean;
+  toggleBoxSelect: () => void;
+  setBoxSelectActive: (active: boolean) => void;
+  /** Live rectangle in canvas pixels while box-selecting (null when idle). */
+  boxSelectRect: { x0: number; y0: number; x1: number; y1: number } | null;
+  setBoxSelectRect: (rect: { x0: number; y0: number; x1: number; y1: number } | null) => void;
+
+  /** Live gizmo-drag HUD (null when not dragging). */
+  dragReadout: DragReadout | null;
+  setDragReadout: (r: DragReadout | null) => void;
+
+  /** Numeric type-to-transform popover. */
+  numericOpen: boolean;
+  openNumeric: () => void;
+  closeNumeric: () => void;
 
   /** Apply a mutation to the document, recording undo history and scheduling autosave. */
   mutate: (fn: (doc: StageDocument) => void, options?: { captureHistory?: boolean }) => void;
@@ -138,7 +176,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     set({ editMode: { meshId, mode: 'face', selection: [] }, selection: { kind: 'mesh', id: meshId } });
   },
 
-  exitEditMode: () => set({ editMode: null }),
+  exitEditMode: () => set({ editMode: null, boxSelectActive: false, boxSelectRect: null }),
 
   setEditComponentMode: (mode) => {
     const em = get().editMode;
@@ -173,6 +211,39 @@ export const useEditor = create<EditorState>((set, get) => ({
   requestFocus: () => set((s) => ({ focusRequest: s.focusRequest + 1 })),
   shortcutsOpen: false,
   setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+
+  projection: 'perspective',
+  toggleProjection: () => set((s) => ({ projection: s.projection === 'perspective' ? 'orthographic' : 'perspective' })),
+  setProjection: (projection) => set({ projection }),
+  requestedView: null,
+  viewNonce: 0,
+  setView: (requestedView) =>
+    set((s) => ({
+      requestedView,
+      viewNonce: s.viewNonce + 1,
+      // orthographic reads best for the axis-aligned snap views
+      projection: requestedView === 'home' ? s.projection : 'orthographic',
+    })),
+
+  editTransformMode: 'translate',
+  setEditTransformMode: (editTransformMode) => set({ editTransformMode }),
+
+  boxSelectActive: false,
+  toggleBoxSelect: () => set((s) => ({ boxSelectActive: !s.boxSelectActive, boxSelectRect: null })),
+  setBoxSelectActive: (boxSelectActive) => set({ boxSelectActive, boxSelectRect: null }),
+  boxSelectRect: null,
+  setBoxSelectRect: (boxSelectRect) => set({ boxSelectRect }),
+
+  dragReadout: null,
+  setDragReadout: (dragReadout) => set({ dragReadout }),
+
+  numericOpen: false,
+  openNumeric: () => {
+    const s = get();
+    if (!s.selection && !s.editMode) return;
+    set({ numericOpen: true });
+  },
+  closeNumeric: () => set({ numericOpen: false }),
 
   duplicateSelection: () => {
     const { selection, doc } = get();

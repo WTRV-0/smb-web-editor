@@ -9,6 +9,17 @@ const GROUPS: { title: string; rows: [string, string][] }[] = [
       ['R', 'Scale gizmo'],
       ['S', 'Toggle grid snapping'],
       ['F', 'Frame selection in view'],
+      ['Enter', 'Type exact transform values'],
+    ],
+  },
+  {
+    title: 'Camera',
+    rows: [
+      ['7', 'Top view'],
+      ['1', 'Front view'],
+      ['3', 'Side view'],
+      ['0', '3D (home) view'],
+      ['5', 'Perspective / orthographic'],
     ],
   },
   {
@@ -27,7 +38,9 @@ const GROUPS: { title: string; rows: [string, string][] }[] = [
     rows: [
       ['Tab', 'Enter / exit edit mode'],
       ['1 / 2 / 3', 'Vertex / Edge / Face select'],
+      ['G / R / S', 'Move / Rotate / Scale selection'],
       ['E', 'Extrude selected faces'],
+      ['B', 'Box (rectangle) select'],
       ['A', 'Select all / none'],
       ['Delete', 'Delete components'],
     ],

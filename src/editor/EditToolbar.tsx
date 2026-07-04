@@ -80,6 +80,10 @@ export function EditToolbar() {
   const setMode = useEditor((s) => s.setEditComponentMode);
   const applyEditOp = useEditor((s) => s.applyEditOp);
   const exitEditMode = useEditor((s) => s.exitEditMode);
+  const editTransformMode = useEditor((s) => s.editTransformMode);
+  const setEditTransformMode = useEditor((s) => s.setEditTransformMode);
+  const boxSelectActive = useEditor((s) => s.boxSelectActive);
+  const toggleBoxSelect = useEditor((s) => s.toggleBoxSelect);
 
   if (!em) return null;
   const mesh = doc.meshes.find((m) => m.id === em.meshId);
@@ -101,6 +105,25 @@ export function EditToolbar() {
           </button>
         ))}
       </div>
+      <div className="btn-group">
+        {(['translate', 'rotate', 'scale'] as const).map((tm) => (
+          <button
+            key={tm}
+            className={editTransformMode === tm ? 'active' : ''}
+            title={`${tm} (${tm === 'translate' ? 'G' : tm === 'rotate' ? 'R' : 'S'})`}
+            onClick={() => setEditTransformMode(tm)}
+          >
+            {tm === 'translate' ? 'Move' : tm === 'rotate' ? 'Rot' : 'Scale'}
+          </button>
+        ))}
+      </div>
+      <button
+        className={boxSelectActive ? 'active' : ''}
+        title="Box select — drag a rectangle to select components (B)"
+        onClick={toggleBoxSelect}
+      >
+        ▧ Box
+      </button>
       <button disabled={em.mode !== 'face' || !hasSelection} onClick={editExtrude} title="Extrude selected faces (E), then drag">
         Extrude
       </button>
