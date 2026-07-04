@@ -1,7 +1,8 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Grid, OrbitControls, TransformControls } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useEditor, type Selection } from '../state/store';
 import type { ItemGroup, StageMesh, StageObject } from '../model/types';
 import { buildGeometry } from './meshGeometry';
@@ -270,6 +271,62 @@ function ItemGroupNode({ group, children }: { group: ItemGroup; children: React.
 
 const deg = (d: number) => d * DEG;
 
+/** Frames the selected node when the F key bumps focusRequest. */
+function FocusHandler() {
+  const focusRequest = useEditor((s) => s.focusRequest);
+  const { camera, controls } = useThree();
+  useEffect(() => {
+    if (focusRequest === 0) return;
+    const sel = useEditor.getState().selection;
+    const key = selectionKey(sel);
+    const node = key ? nodeRegistry.get(key) : undefined;
+    if (!node) return;
+    const box = new THREE.Box3().setFromObject(node);
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 1);
+    const orbit = controls as OrbitControlsImpl | null;
+    // pull the camera along its current direction to a distance that frames the box
+    const dir = camera.position.clone().sub(orbit?.target ?? center).normalize();
+    const dist = radius * 3;
+    camera.position.copy(center).addScaledVector(dir, dist);
+    if (orbit) {
+      orbit.target.copy(center);
+      orbit.update();
+    }
+  }, [focusRequest, camera, controls]);
+  return null;
+}
+
+/** SMB2-style vertical sky gradient set as the scene background. */
+function SkyBackground() {
+  const { scene } = useThree();
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    const grad = ctx.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, '#2a5f9e');
+    grad.addColorStop(0.55, '#3ba7e5');
+    grad.addColorStop(1, '#9fd8f4');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 4, 256);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }, []);
+  useEffect(() => {
+    const prev = scene.background;
+    scene.background = texture;
+    return () => {
+      scene.background = prev;
+      texture.dispose();
+    };
+  }, [scene, texture]);
+  return null;
+}
+
 /** Advances the shared preview clock once per frame while playing. */
 function ClockDriver() {
   const playing = useEditor((s) => s.previewPlaying);
@@ -290,18 +347,21 @@ export function Viewport() {
         if (s.editMode) s.setEditSelection([]);
         else s.select(null);
       }}
-      style={{ background: '#15181e' }}
+      style={{ background: '#3ba7e5' }}
     >
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 20, 10]} intensity={1.2} />
+      <SkyBackground />
+      <hemisphereLight args={['#dff2ff', '#3a5a3a', 0.6]} />
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[10, 20, 10]} intensity={1.3} castShadow />
       <directionalLight position={[-8, 12, -6]} intensity={0.4} />
       <Grid
         infiniteGrid
         cellSize={1}
         sectionSize={10}
-        cellColor="#2a2f3a"
-        sectionColor="#3d4454"
-        fadeDistance={80}
+        cellColor="#5b7fa6"
+        sectionColor="#9fc6e8"
+        fadeDistance={90}
+        fadeStrength={1.5}
         position={[0, -0.001, 0]}
       />
       {doc.itemGroups.map((g) => (
@@ -332,6 +392,7 @@ export function Viewport() {
       <StartEntity />
       <FalloutPlane />
       <SelectionGizmo />
+      <FocusHandler />
       <ClockDriver />
       <OrbitControls makeDefault />
     </Canvas>

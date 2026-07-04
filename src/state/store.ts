@@ -59,6 +59,16 @@ interface EditorState {
   setTransformMode: (mode: TransformMode) => void;
   toggleSnap: () => void;
   setLibraryOpen: (open: boolean) => void;
+  /** Duplicate the selected mesh or object (offset slightly), selecting the copy. */
+  duplicateSelection: () => void;
+  /** Toggle visibility of the selected mesh. */
+  toggleSelectedVisibility: () => void;
+  /** Bumped to ask the viewport to frame the current selection (F key). */
+  focusRequest: number;
+  requestFocus: () => void;
+  /** Whether the keyboard-shortcuts cheat sheet is open. */
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (open: boolean) => void;
 
   /** Apply a mutation to the document, recording undo history and scheduling autosave. */
   mutate: (fn: (doc: StageDocument) => void, options?: { captureHistory?: boolean }) => void;
@@ -158,6 +168,48 @@ export const useEditor = create<EditorState>((set, get) => ({
   setTransformMode: (transformMode) => set({ transformMode }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setLibraryOpen: (libraryOpen) => set({ libraryOpen }),
+
+  focusRequest: 0,
+  requestFocus: () => set((s) => ({ focusRequest: s.focusRequest + 1 })),
+  shortcutsOpen: false,
+  setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+
+  duplicateSelection: () => {
+    const { selection, doc } = get();
+    if (!selection) return;
+    if (selection.kind === 'mesh') {
+      const src = doc.meshes.find((m) => m.id === selection.id);
+      if (!src) return;
+      const copy = structuredClone(src);
+      copy.id = crypto.randomUUID();
+      copy.name = `${src.name} copy`;
+      copy.transform.position = {
+        x: src.transform.position.x + 1,
+        y: src.transform.position.y,
+        z: src.transform.position.z + 1,
+      };
+      get().mutate((d) => void d.meshes.push(copy));
+      set({ selection: { kind: 'mesh', id: copy.id } });
+    } else if (selection.kind === 'object') {
+      const src = doc.objects.find((o) => o.id === selection.id);
+      if (!src) return;
+      const copy = structuredClone(src);
+      copy.id = crypto.randomUUID();
+      copy.name = `${src.name} copy`;
+      copy.position = { x: src.position.x + 1, y: src.position.y, z: src.position.z + 1 };
+      get().mutate((d) => void d.objects.push(copy));
+      set({ selection: { kind: 'object', id: copy.id } });
+    }
+  },
+
+  toggleSelectedVisibility: () => {
+    const { selection } = get();
+    if (selection?.kind !== 'mesh') return;
+    get().mutate((d) => {
+      const m = d.meshes.find((x) => x.id === selection.id);
+      if (m) m.visible = !m.visible;
+    });
+  },
 
   mutate: (fn, options) => {
     const { doc, past } = get();

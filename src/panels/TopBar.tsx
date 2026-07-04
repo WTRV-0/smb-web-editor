@@ -44,6 +44,7 @@ export function TopBar() {
   const canRedo = useEditor((s) => s.future.length > 0);
   const newDocument = useEditor((s) => s.newDocument);
   const setLibraryOpen = useEditor((s) => s.setLibraryOpen);
+  const setShortcutsOpen = useEditor((s) => s.setShortcutsOpen);
 
   return (
     <div className="topbar">
@@ -91,6 +92,9 @@ export function TopBar() {
         Export
       </button>
       <IsoPatcherButton />
+      <button onClick={() => setShortcutsOpen(true)} title="Keyboard shortcuts (?)">
+        ⌨
+      </button>
       <HelpButton />
     </div>
   );
