@@ -201,11 +201,25 @@ export interface ItemGroup {
   textureScroll?: { u: number; v: number };
 }
 
+/**
+ * A texture usable by stage meshes.
+ * - `uploaded`: an original image the user added (pixels stored in dataUrl).
+ * - `game`: a reference to a texture inside a stock stage's TPL. No pixels are
+ *   stored or shared — the texture is copied from the user's own ISO into the
+ *   exported stage TPL at patch time. This keeps copyrighted art out of the
+ *   tool and out of shared .smbstage files.
+ */
 export interface StageTexture {
   id: string;
   name: string;
-  /** PNG/JPEG data URL as uploaded */
-  dataUrl: string;
+  /** defaults to 'uploaded' for documents saved before this field existed */
+  kind?: 'uploaded' | 'game';
+  /** uploaded only: PNG/JPEG data URL */
+  dataUrl?: string;
+  /** game only: donor stage number whose st###.tpl holds the texture */
+  donorStageId?: number;
+  /** game only: index of the texture within that TPL */
+  textureIndex?: number;
 }
 
 export interface StartPlacement {

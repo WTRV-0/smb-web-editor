@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { findMesh, findObject, useEditor } from '../state/store';
 import type { GroupAnimation, ItemGroup, Keyframe, PrimitiveParams, StageMesh, StageObject, Vec3 } from '../model/types';
 import { buildGeometry } from '../editor/meshGeometry';
 import { BUILTIN_TEXTURES } from '../textures/builtin';
 import { BACKGROUND_THEMES } from '../textures/backgrounds';
+import { getGamePreview } from '../textures/gamePreview';
+import { IsoTextureBrowser } from './IsoTextureBrowser';
 import { NumberField, SelectField, TextField, Vec3Field } from './fields';
 
 export function Inspector() {
@@ -31,6 +33,8 @@ function TextureManager() {
   const doc = useEditor((s) => s.doc);
   const mutate = useEditor((s) => s.mutate);
   const textures = doc.textures ?? [];
+  const uploadInput = useRef<HTMLInputElement>(null);
+  const [browserOpen, setBrowserOpen] = useState(false);
 
   const upload = (file: File | undefined) => {
     if (!file) return;
@@ -41,6 +45,7 @@ function TextureManager() {
         d.textures.push({
           id: crypto.randomUUID(),
           name: file.name.replace(/\.[^.]+$/, ''),
+          kind: 'uploaded',
           dataUrl: reader.result as string,
         });
       });
@@ -51,36 +56,49 @@ function TextureManager() {
   return (
     <>
       <h4>Textures</h4>
-      {textures.map((t) => (
-        <div key={t.id} className="texture-row">
-          <img src={t.dataUrl} alt="" />
-          <span className="outliner-label">{t.name}</span>
-          <button
-            className="icon-btn"
-            title="Delete texture"
-            onClick={() =>
-              mutate((d) => {
-                d.textures = (d.textures ?? []).filter((x) => x.id !== t.id);
-                for (const m of d.meshes) if (m.textureId === t.id) m.textureId = undefined;
-              })
-            }
-          >
-            ✕
-          </button>
-        </div>
-      ))}
-      <label className="field field-wide">
-        <span>Upload</span>
-        <input
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          onChange={(e) => {
-            upload(e.target.files?.[0]);
-            e.target.value = '';
-          }}
-        />
-      </label>
-      <p className="hint">Textures are stored with the level and encoded to GameCube CMPR on export (resized to powers of two, max 512).</p>
+      {textures.map((t) => {
+        const src = t.kind === 'game' ? getGamePreview(t.id) : t.dataUrl;
+        return (
+          <div key={t.id} className="texture-row">
+            {src ? <img src={src} alt="" /> : <span className="texture-swatch" title="Game texture (preview after ISO browse)">ISO</span>}
+            <span className="outliner-label">{t.name}</span>
+            <button
+              className="icon-btn"
+              title="Delete texture"
+              onClick={() =>
+                mutate((d) => {
+                  d.textures = (d.textures ?? []).filter((x) => x.id !== t.id);
+                  for (const m of d.meshes) if (m.textureId === t.id) m.textureId = undefined;
+                })
+              }
+            >
+              ✕
+            </button>
+          </div>
+        );
+      })}
+      <div className="field field-wide">
+        <span>Add</span>
+        <button onClick={() => uploadInput.current?.click()}>Upload image</button>
+        <button onClick={() => setBrowserOpen(true)} title="Reference a texture from your SMB2 ISO">
+          From ISO…
+        </button>
+      </div>
+      <input
+        ref={uploadInput}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={(e) => {
+          upload(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      <p className="hint">
+        Uploaded images are stored with the level and encoded to GameCube CMPR on export. "From ISO" references a stock
+        game texture — it's copied from your ISO into the stage at patch time, not stored here.
+      </p>
+      {browserOpen && <IsoTextureBrowser onClose={() => setBrowserOpen(false)} />}
     </>
   );
 }
@@ -502,7 +520,7 @@ function MeshInspector({ mesh }: { mesh: StageMesh }) {
         options={[
           { value: '', label: '— color only —' },
           ...BUILTIN_TEXTURES.map((t) => ({ value: t.id, label: t.name })),
-          ...textures.map((t) => ({ value: t.id, label: `Uploaded: ${t.name}` })),
+          ...textures.map((t) => ({ value: t.id, label: `${t.kind === 'game' ? 'ISO' : 'Uploaded'}: ${t.name}` })),
         ]}
         onChange={(v) => edit((m) => void (m.textureId = v || undefined))}
       />

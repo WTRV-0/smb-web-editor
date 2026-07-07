@@ -13,6 +13,7 @@ import { EditModeOverlay, nearestEdgeOfFace, nearestVertexOfFace } from './EditM
 import { CameraRig } from './CameraRig';
 import { getBuiltinTexture, isBuiltinTexture } from '../textures/builtin';
 import { getBackgroundSky } from '../textures/backgrounds';
+import { getGamePreview } from '../textures/gamePreview';
 
 const DEG = Math.PI / 180;
 
@@ -34,19 +35,22 @@ function registerNode(key: string) {
 const textureCache = new Map<string, THREE.Texture>();
 
 function useMeshTexture(textureId: string | undefined): THREE.Texture | null {
-  const uploadedUrl = useEditor((s) => s.doc.textures?.find((t) => t.id === textureId)?.dataUrl);
-  const dataUrl = isBuiltinTexture(textureId) ? getBuiltinTexture(textureId).dataUrl : uploadedUrl;
+  const ref = useEditor((s) => s.doc.textures?.find((t) => t.id === textureId));
+  let dataUrl: string | undefined;
+  if (isBuiltinTexture(textureId)) dataUrl = getBuiltinTexture(textureId).dataUrl;
+  else if (ref?.kind === 'game') dataUrl = getGamePreview(ref.id) ?? getBuiltinTexture('builtin:stone').dataUrl;
+  else dataUrl = ref?.dataUrl;
   return useMemo(() => {
     if (!textureId || !dataUrl) return null;
-    let tex = textureCache.get(textureId);
+    // key on the actual image source so a game preview appearing later refreshes
+    const key = `${textureId}|${dataUrl.length}`;
+    let tex = textureCache.get(key);
     if (!tex) {
       tex = new THREE.TextureLoader().load(dataUrl);
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
       tex.colorSpace = THREE.SRGBColorSpace;
-      // builtins tile; scale so the checker reads at stage scale
-      if (isBuiltinTexture(textureId)) tex.repeat.set(1, 1);
-      textureCache.set(textureId, tex);
+      textureCache.set(key, tex);
     }
     return tex;
   }, [textureId, dataUrl]);

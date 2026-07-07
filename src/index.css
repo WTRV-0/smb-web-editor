@@ -547,6 +547,86 @@ kbd {
   align-self: flex-end;
 }
 
+/* ---------- ISO texture browser ---------- */
+.iso-tex-modal {
+  flex-direction: column;
+  width: min(760px, 94vw);
+  height: min(640px, 90vh);
+}
+.iso-tex-content {
+  padding: 8px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.iso-tex-content h2 {
+  font-size: 18px;
+  margin: 8px 0 4px;
+}
+.iso-tex-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+.iso-tex-top select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+}
+.iso-tex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.iso-tex-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px;
+  background: var(--panel-2);
+}
+.iso-tex-cell.added {
+  border-color: var(--accent);
+}
+.iso-tex-cell img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border-radius: 4px;
+  background: #0d1420;
+}
+.iso-tex-empty {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+.iso-tex-label {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.texture-swatch {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 4px;
+}
+
 /* ---------- Texture manager ---------- */
 .texture-row {
   display: flex;

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, ensureDefaultSet } from '../library/db';
 import { useEditor } from '../state/store';
 import { buildStageFiles } from '../export/exportLevel';
+import { resolveGameTextures } from '../export/resolveGameTextures';
 import { patchIso, type ReplacementFile } from '../formats/gciso/patch';
 import { STORY_SLOTS } from '../formats/gciso/slots';
 
@@ -56,14 +57,18 @@ function IsoPatcherModal({ onClose }: { onClose: () => void }) {
       });
       setBusy(true);
 
-      setProgress({ fraction: 0, message: 'Building stage files…' });
+      setProgress({ fraction: 0, message: 'Reading textures from ISO…' });
       const list = await db.levels.where('setId').equals(setId).sortBy('slot');
+      // pull any referenced stock textures out of the user's own ISO
+      const resolved = await resolveGameTextures(iso, list.map((l) => l.document));
+
+      setProgress({ fraction: 0, message: 'Building stage files…' });
       const replacements: ReplacementFile[] = [];
       for (let i = 0; i < list.length; i++) {
         const stageId = slotIds[i];
         if (!stageId) continue; // level marked "skip"
         const slot = String(stageId).padStart(3, '0');
-        const stage = await buildStageFiles(list[i].document);
+        const stage = await buildStageFiles(list[i].document, resolved);
         replacements.push({ name: `STAGE${slot}.lz`, data: stage.lz });
         replacements.push({ name: `st${slot}.gma`, data: stage.gma });
         replacements.push({ name: `st${slot}.tpl`, data: stage.tpl });

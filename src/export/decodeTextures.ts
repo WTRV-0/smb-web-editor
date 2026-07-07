@@ -8,6 +8,8 @@ import type { TplTextureInput } from '../formats/tpl/write';
 export async function decodeTextures(doc: StageDocument): Promise<Map<string, TplTextureInput>> {
   const out = new Map<string, TplTextureInput>();
   for (const tex of doc.textures ?? []) {
+    // game-texture references carry no pixels here; they're resolved from the ISO
+    if (tex.kind === 'game' || !tex.dataUrl) continue;
     try {
       out.set(tex.id, await decodeDataUrl(tex.dataUrl));
     } catch (err) {

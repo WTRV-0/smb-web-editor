@@ -27,13 +27,21 @@ export interface ExportBundle {
  * `decodedTextures` maps StageTexture ids to RGBA data (see decodeTextures);
  * meshes referencing missing/undecoded textures fall back to their color.
  */
+/** Raw texture blocks pulled from the user's ISO, keyed by document texture id. */
+export type GameTextureResolver = Map<
+  string,
+  { raw: Uint8Array; format: number; width: number; height: number; levelCount: number }
+>;
+
 export function buildExport(
   doc: StageDocument,
   decodedTextures: Map<string, TplTextureInput> = new Map(),
+  resolvedGame: GameTextureResolver = new Map(),
 ): ExportBundle {
   const tplTextures: TplTextureInput[] = [];
   const colorTextureIndex = new Map<string, number>();
-  const uploadedTextureIndex = new Map<string, number>();
+  const idTextureIndex = new Map<string, number>();
+  const byId = new Map((doc.textures ?? []).map((t) => [t.id, t]));
   const textureForColor = (hex: string): number => {
     const existing = colorTextureIndex.get(hex);
     if (existing !== undefined) return existing;
@@ -42,24 +50,33 @@ export function buildExport(
     colorTextureIndex.set(hex, idx);
     return idx;
   };
+  const push = (id: string, tex: TplTextureInput): number => {
+    const existing = idTextureIndex.get(id);
+    if (existing !== undefined) return existing;
+    const idx = tplTextures.length;
+    tplTextures.push(tex);
+    idTextureIndex.set(id, idx);
+    return idx;
+  };
   const textureForMesh = (mesh: { textureId?: string; color: string }): number => {
+    const id = mesh.textureId;
     // built-in procedural textures (grass checker etc.) — baked into the .tpl
-    if (isBuiltinTexture(mesh.textureId)) {
-      const existing = uploadedTextureIndex.get(mesh.textureId);
-      if (existing !== undefined) return existing;
-      const t = getBuiltinTexture(mesh.textureId);
-      const idx = tplTextures.length;
-      tplTextures.push({ rgba: t.rgba, width: t.width, height: t.height });
-      uploadedTextureIndex.set(mesh.textureId, idx);
-      return idx;
+    if (isBuiltinTexture(id)) {
+      const t = getBuiltinTexture(id);
+      return push(id, { rgba: t.rgba, width: t.width, height: t.height });
     }
-    if (mesh.textureId && decodedTextures.has(mesh.textureId)) {
-      const existing = uploadedTextureIndex.get(mesh.textureId);
-      if (existing !== undefined) return existing;
-      const idx = tplTextures.length;
-      tplTextures.push(decodedTextures.get(mesh.textureId)!);
-      uploadedTextureIndex.set(mesh.textureId, idx);
-      return idx;
+    if (id) {
+      const ref = byId.get(id);
+      // game texture reference: copy the raw block from the ISO if we have it
+      if (ref?.kind === 'game') {
+        const resolved = resolvedGame.get(id);
+        if (resolved) return push(id, resolved);
+        // no ISO available (e.g. zip export): fall back to the grass checker
+        const g = getBuiltinTexture('builtin:grass');
+        return push(id, { rgba: g.rgba, width: g.width, height: g.height });
+      }
+      // uploaded texture decoded to RGBA
+      if (decodedTextures.has(id)) return push(id, decodedTextures.get(id)!);
     }
     return textureForColor(mesh.color);
   };

@@ -39,6 +39,12 @@ export function HelpButton() {
                 <li>Link <b>wormholes</b> to each other via the inspector.</li>
               </ul>
 
+              <h3>Textures</h3>
+              <ul>
+                <li>Meshes can use a built-in texture (grass checker, stone, wood…), an uploaded image, or a <b>reference to a stock game texture</b> from your own ISO ("From ISO" in the Textures panel).</li>
+                <li>Game textures store only a reference — the pixels are copied from your ISO into the stage during <b>Patch ISO</b>, so no game art is bundled in this tool or in shared stages. A plain zip export can't include them and falls back to grass.</li>
+              </ul>
+
               <h3>Getting levels into Dolphin</h3>
               <ol>
                 <li>Use <b>Patch ISO</b>: pick a level set, assign each level to a named slot (Story 1-1 … 10-10), select your legally-dumped SMB2 ISO, and a patched copy is written — all in the browser.</li>
