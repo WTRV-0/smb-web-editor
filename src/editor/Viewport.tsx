@@ -11,6 +11,8 @@ import { evalGroupAnimation } from './animation';
 import { previewClock } from './previewClock';
 import { EditModeOverlay, nearestEdgeOfFace, nearestVertexOfFace } from './EditModeOverlay';
 import { CameraRig } from './CameraRig';
+import { getBuiltinTexture, isBuiltinTexture } from '../textures/builtin';
+import { getBackgroundSky } from '../textures/backgrounds';
 
 const DEG = Math.PI / 180;
 
@@ -32,7 +34,8 @@ function registerNode(key: string) {
 const textureCache = new Map<string, THREE.Texture>();
 
 function useMeshTexture(textureId: string | undefined): THREE.Texture | null {
-  const dataUrl = useEditor((s) => s.doc.textures?.find((t) => t.id === textureId)?.dataUrl);
+  const uploadedUrl = useEditor((s) => s.doc.textures?.find((t) => t.id === textureId)?.dataUrl);
+  const dataUrl = isBuiltinTexture(textureId) ? getBuiltinTexture(textureId).dataUrl : uploadedUrl;
   return useMemo(() => {
     if (!textureId || !dataUrl) return null;
     let tex = textureCache.get(textureId);
@@ -41,6 +44,8 @@ function useMeshTexture(textureId: string | undefined): THREE.Texture | null {
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
       tex.colorSpace = THREE.SRGBColorSpace;
+      // builtins tile; scale so the checker reads at stage scale
+      if (isBuiltinTexture(textureId)) tex.repeat.set(1, 1);
       textureCache.set(textureId, tex);
     }
     return tex;
@@ -313,24 +318,31 @@ function FocusHandler() {
   return null;
 }
 
-/** SMB2-style vertical sky gradient set as the scene background. */
+/** Themed vertical sky gradient driven by the stage's background selection. */
 function SkyBackground() {
   const { scene } = useThree();
+  const background = useEditor((s) => s.doc.background);
   const texture = useMemo(() => {
+    const theme = getBackgroundSky(background);
     const canvas = document.createElement('canvas');
     canvas.width = 4;
     canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
     const grad = ctx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#2a5f9e');
-    grad.addColorStop(0.55, '#3ba7e5');
-    grad.addColorStop(1, '#9fd8f4');
+    grad.addColorStop(0, theme.sky[0]);
+    grad.addColorStop(0.55, theme.sky[1]);
+    grad.addColorStop(1, theme.sky[2]);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 4, 256);
+    // starfield for the darker themes
+    if (background === 'night' || background === 'space') {
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      for (let i = 0; i < 40; i++) ctx.fillRect(Math.random() * 4, Math.random() * 150, 1, 1);
+    }
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
-  }, []);
+  }, [background]);
   useEffect(() => {
     const prev = scene.background;
     scene.background = texture;
@@ -372,7 +384,7 @@ export function Viewport() {
         infiniteGrid
         cellSize={1}
         sectionSize={10}
-        cellColor="#5b7fa6"
+        cellColor={getBackgroundSky(doc.background).ground}
         sectionColor="#9fc6e8"
         fadeDistance={90}
         fadeStrength={1.5}

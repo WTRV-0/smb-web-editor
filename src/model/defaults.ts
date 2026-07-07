@@ -10,6 +10,7 @@ import {
   type Transform,
   type Vec3,
 } from './types';
+import { DEFAULT_FLOOR_TEXTURE } from '../textures/builtin';
 
 export const vec3 = (x = 0, y = 0, z = 0): Vec3 => ({ x, y, z });
 
@@ -116,6 +117,8 @@ export function newStageDocument(name = 'Untitled Stage'): StageDocument {
   const now = Date.now();
   const floor = newPrimitiveMesh('box');
   floor.name = 'Floor';
+  floor.color = '#4a9e57';
+  floor.textureId = DEFAULT_FLOOR_TEXTURE;
   const goal = newObject('goal');
   goal.position = vec3(0, 0.5, -8);
   const doc: StageDocument = {
@@ -128,7 +131,13 @@ export function newStageDocument(name = 'Untitled Stage'): StageDocument {
     musicId: 36,
     start: { position: vec3(0, 1, 8), rotation: vec3() },
     itemGroups: [staticGroup()],
-    meshes: [{ ...floor, transform: { ...identityTransform(), scale: vec3(1, 1, 1), position: vec3(0, -0.25, 0) }, source: { type: 'primitive', params: { kind: 'box', width: 8, height: 0.5, depth: 20 } } }],
+    meshes: [
+      {
+        ...floor,
+        transform: { ...identityTransform(), scale: vec3(1, 1, 1), position: vec3(0, -0.25, 0) },
+        source: { type: 'primitive', params: { kind: 'box', width: 8, height: 0.5, depth: 20 } },
+      },
+    ],
     objects: [goal],
     createdAt: now,
     modifiedAt: now,

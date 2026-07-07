@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { findMesh, findObject, useEditor } from '../state/store';
 import type { GroupAnimation, ItemGroup, Keyframe, PrimitiveParams, StageMesh, StageObject, Vec3 } from '../model/types';
 import { buildGeometry } from '../editor/meshGeometry';
+import { BUILTIN_TEXTURES } from '../textures/builtin';
+import { BACKGROUND_THEMES } from '../textures/backgrounds';
 import { NumberField, SelectField, TextField, Vec3Field } from './fields';
 
 export function Inspector() {
@@ -105,18 +107,7 @@ function StageSettings() {
       <SelectField
         label="Background"
         value={doc.background}
-        options={[
-          'jungle',
-          'water',
-          'night',
-          'sunset',
-          'space',
-          'sand',
-          'ice',
-          'storm',
-          'bonus',
-          'master',
-        ].map((v) => ({ value: v, label: v }))}
+        options={BACKGROUND_THEMES.map((b) => ({ value: b.id, label: b.name }))}
         onChange={(background) => mutate((d) => void (d.background = background))}
       />
       <TextureManager />
@@ -510,7 +501,8 @@ function MeshInspector({ mesh }: { mesh: StageMesh }) {
         value={mesh.textureId ?? ''}
         options={[
           { value: '', label: '— color only —' },
-          ...textures.map((t) => ({ value: t.id, label: t.name })),
+          ...BUILTIN_TEXTURES.map((t) => ({ value: t.id, label: t.name })),
+          ...textures.map((t) => ({ value: t.id, label: `Uploaded: ${t.name}` })),
         ]}
         onChange={(v) => edit((m) => void (m.textureId = v || undefined))}
       />

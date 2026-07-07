@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { LevelRecord, LevelSetRecord } from '../model/types';
+import { buildExampleStage } from '../model/exampleStage';
 
 class WorkshopDB extends Dexie {
   levels!: EntityTable<LevelRecord, 'id'>;
@@ -29,5 +30,8 @@ export async function ensureDefaultSet(): Promise<void> {
       createdAt: now,
       modifiedAt: now,
     });
+    // Seed the showcase stage so a first-time visitor has a rich example to open.
+    const example = buildExampleStage();
+    await db.levels.add({ id: example.id, setId: DEFAULT_SET_ID, slot: 0, document: example });
   }
 }

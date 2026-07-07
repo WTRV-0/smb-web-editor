@@ -3,6 +3,7 @@ import type { SdGroup, StageDefInput } from '../formats/stagedef/types';
 import type { GmaModelInput } from '../formats/gma/write';
 import type { TplTextureInput } from '../formats/tpl/write';
 import { bakeMesh } from './bakeGeometry';
+import { getBuiltinTexture, isBuiltinTexture } from '../textures/builtin';
 
 const GOAL_TYPE = { blue: 0, green: 1, red: 2 } as const;
 const BANANA_TYPE = { single: 0, bunch: 1 } as const;
@@ -42,6 +43,16 @@ export function buildExport(
     return idx;
   };
   const textureForMesh = (mesh: { textureId?: string; color: string }): number => {
+    // built-in procedural textures (grass checker etc.) — baked into the .tpl
+    if (isBuiltinTexture(mesh.textureId)) {
+      const existing = uploadedTextureIndex.get(mesh.textureId);
+      if (existing !== undefined) return existing;
+      const t = getBuiltinTexture(mesh.textureId);
+      const idx = tplTextures.length;
+      tplTextures.push({ rgba: t.rgba, width: t.width, height: t.height });
+      uploadedTextureIndex.set(mesh.textureId, idx);
+      return idx;
+    }
     if (mesh.textureId && decodedTextures.has(mesh.textureId)) {
       const existing = uploadedTextureIndex.get(mesh.textureId);
       if (existing !== undefined) return existing;

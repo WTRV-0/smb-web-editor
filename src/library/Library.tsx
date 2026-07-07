@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, DEFAULT_SET_ID, ensureDefaultSet } from './db';
-import { downloadBlob, exportSetAsProject, importProject } from './projectFile';
+import { downloadBlob, exportSetAsProject, exportStageFile, importProject, importStageFile } from './projectFile';
 import { exportLevelsAsZip } from '../export/exportLevel';
 import { STORY_SLOTS } from '../formats/gciso/slots';
 import { BrandMark, GamepadIcon } from '../ui/icons';
@@ -16,6 +16,7 @@ export function Library() {
   const [selectedSetId, setSelectedSetId] = useState(currentSetId);
   const [search, setSearch] = useState('');
   const importInput = useRef<HTMLInputElement>(null);
+  const stageInput = useRef<HTMLInputElement>(null);
 
   const sets = useLiveQuery(async () => {
     await ensureDefaultSet();
@@ -92,6 +93,15 @@ export function Library() {
     if (!file) return;
     try {
       setSelectedSetId(await importProject(file));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const onImportStage = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      await importStageFile(file, selectedSetId);
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
     }
@@ -175,6 +185,19 @@ export function Library() {
               onChange={(e) => setSearch(e.target.value)}
             />
             <button onClick={createLevel}>＋ New Level</button>
+            <button onClick={() => stageInput.current?.click()} title="Import a shared stage (.smbstage)">
+              Import Stage
+            </button>
+            <input
+              ref={stageInput}
+              type="file"
+              accept=".smbstage,application/json"
+              hidden
+              onChange={(e) => {
+                void onImportStage(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
             <button className="icon-btn modal-close" onClick={() => setLibraryOpen(false)} title="Close">
               ✕
             </button>
@@ -213,6 +236,18 @@ export function Library() {
                     </button>
                     <button className="icon-btn" title="Duplicate" onClick={() => void duplicateLevel(level)}>
                       ⧉
+                    </button>
+                    <button
+                      className="icon-btn"
+                      title="Download stage (.smbstage) to share"
+                      onClick={() =>
+                        downloadBlob(
+                          exportStageFile(level.document, level.thumbnail),
+                          `${level.document.name}.smbstage`,
+                        )
+                      }
+                    >
+                      ⭳
                     </button>
                     <button className="icon-btn" title="Delete" onClick={() => void deleteLevel(level)}>
                       ✕
